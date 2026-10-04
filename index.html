@@ -49,7 +49,9 @@ body{font-family:var(--ff,'Nunito'),system-ui,sans-serif!important;zoom:var(--fz
 .pfi{width:34px;height:34px;border-radius:50%;object-fit:cover}
 table.ct td{border:1px solid var(--ac);min-width:60px;padding:4px}
 .spl{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:8px}@media(max-width:800px){.spl{grid-template-columns:1fr}}
-</style><style>.wrap{zoom:var(--ls,1)}</style></head><body>
+</style><style>.wrap{zoom:var(--ls,1)}</style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="supabase.js"></script></head><body>
 <canvas id="fx"></canvas>
 <div id="modal"><div><p id="mt"></p><div class="row"><button class="pri" id="my">Yes, delete</button><button id="mn">Keep it</button></div></div></div>
 <div id="word"><div class="wc" id="wc"></div></div>
@@ -10262,8 +10264,9 @@ let S={theme:'rain',secs:[
 {k:'list',ic:'book',t:'Resources',b:[B('My resources',[])]},
 {k:'list',ic:'target',t:'Goals',b:[B('My goals',[])]},
 {k:'ask',ic:'search',t:'Research',b:[B('Saved videos and links',[],'link')]}],tasks:{},chat:[],bin:[],mode:'theme',apps:[{n:'ChatGPT',u:'https://chatgpt.com'},{n:'Google',u:'https://www.google.com'},{n:'YouTube',u:'https://www.youtube.com'}]};
-try{const r=localStorage.getItem('pb-v4');if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
-const save=()=>{try{localStorage.setItem('pb-v4',JSON.stringify(S))}catch(e){}};
+const SK=window.CC&&CC.uid?'pb-v4:'+CC.uid:null;
+try{const r=SK&&localStorage.getItem(SK);if(r)S=Object.assign(S,JSON.parse(r))}catch(e){}
+const save=()=>{if(!SK)return;try{localStorage.setItem(SK,JSON.stringify(S))}catch(e){}window.CC&&CC.dirty&&CC.dirty()};
 let fut=[],hist=[],page='home',tab=0,sel=T,cm=new Date();cm.setDate(1);const TB=[['Due today',0],['3 days',3],['7 days',7],['30 days',30],['All reviews',-1]];
 const snap=()=>{hist.push(JSON.stringify(S));fut=[];if(hist.length>60)hist.shift()};
 const toast=(m,b,f)=>{tm.textContent=m;tb.style.display=b?'':'none';tb.textContent=b||'';tb.onclick=()=>{toastEl.classList.remove('on');f&&f()};toastEl.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>toastEl.classList.remove('on'),6000)};
@@ -10457,9 +10460,9 @@ else{cx.globalAlpha=.7;cx.fillStyle='#fff';cx.beginPath();cx.arc(q.x,q.y,q.r*2,0
 if(q.y>cv.height+12)q.y=-12;if(q.y<-14)q.y=cv.height+12;if(q.x<-10)q.x=cv.width;if(q.x>cv.width+10)q.x=-5}
 if(!RM)requestAnimationFrame(fxLoop)}
 addEventListener('resize',()=>fxInit(ty));if(!S.bk){const r=S.secs.find(x=>x.ic=='book'&&x.k=='list');if(r){r.b.push(B('Shinkanzen Master N3',[]),B('Soumatome N3',[]));S.bk=1;save()}}
-const idb=()=>new Promise((r,j)=>{const q=indexedDB.open('ccm-files',1);q.onupgradeneeded=()=>q.result.createObjectStore('f');q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});
-const idbPut=async(k,v)=>{const d=await idb();return new Promise((r,j)=>{const x=d.transaction('f','readwrite');x.objectStore('f').put(v,k);x.oncomplete=r;x.onerror=()=>j(x.error)})};
-const idbGet=async k=>{const d=await idb();return new Promise((r,j)=>{const q=d.transaction('f').objectStore('f').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)})};
+const idb=()=>new Promise((r,j)=>{const q=indexedDB.open(window.CC?CC.dbName:'ccm-files',1);q.onupgradeneeded=()=>q.result.createObjectStore('f');q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});
+const idbPut=async(k,v)=>{const d=await idb();await new Promise((r,j)=>{const x=d.transaction('f','readwrite');x.objectStore('f').put(v,k);x.oncomplete=r;x.onerror=()=>j(x.error)});window.CC&&CC.fileUp&&CC.fileUp(k)};
+const idbGet=async k=>{const d=await idb();const v=await new Promise((r,j)=>{const q=d.transaction('f').objectStore('f').get(k);q.onsuccess=()=>r(q.result);q.onerror=()=>j(q.error)});if(v===undefined&&window.CC&&CC.fileDown){try{return await CC.fileDown(k)}catch(e){}}return v};
 function pickFile(s,b){const i=document.createElement('input');i.type='file';i.multiple=true;i.onchange=async()=>{try{for(const f of i.files){const id=Date.now()+Math.random();await idbPut(id,f);snap();S.secs[s].b[b].it.push({t:f.name.replace(/\.[^.]+$/,''),fid:id,fn:f.name})}save();R()}catch(e){toast('Could not store the file')}};i.click()}
 function undo(){if(!hist.length)return toast('Nothing to undo');fut.push(JSON.stringify(S));const c=S.chat;S=JSON.parse(hist.pop());S.chat=c;save();R()}
 function redo(){if(!fut.length)return toast('Nothing to redo');hist.push(JSON.stringify(S));const c=S.chat;S=JSON.parse(fut.pop());S.chat=c;save();R()}
@@ -10613,7 +10616,7 @@ window.AN=AN;window.sprite=sprite;
 function buddy(){const bn=$('.banner');if(!bn||S.pa0===1)return;const d=document.createElement('div');d.className='pa';d.innerHTML=S.animg?`<img src="${S.animg}" alt="">`:sprite(S.an||'Panda');bn.appendChild(d)}
 /* ---------- drawer ---------- */
 const hb=document.createElement('button');hb.id='hb';hb.textContent='☰';hb.setAttribute('aria-label','Menu');const dr=document.createElement('div');dr.id='dr';document.body.append(dr,hb);
-function drawer(){const lnk=(p,t,a)=>`<button data-a="${a||'go'}" data-p="${p}">${t}</button>`;dr.innerHTML=lnk('home','🏠 Home','home')+'<hr>'+S.secs.map((s,i)=>s.h?'':lnk(i,E(s.t))).join('')+'<hr>'+lnk('canvas','🎨 Canvas')+lnk('jp','🇯🇵 Japanese N5–N1')+lnk('game','🎮 Games')+lnk('timer','⏱ Focus timer')+'<button data-x="mpt">🎵 Music player</button><hr>'+lnk('themes','🌙 Themes')+lnk('bin','🗑 Recycle bin')+lnk('settings','⚙ Settings')}
+function drawer(){const lnk=(p,t,a)=>`<button data-a="${a||'go'}" data-p="${p}">${t}</button>`;dr.innerHTML=lnk('home','🏠 Home','home')+'<hr>'+S.secs.map((s,i)=>s.h?'':lnk(i,E(s.t))).join('')+'<hr>'+lnk('canvas','🎨 Canvas')+lnk('jp','🇯🇵 Japanese N5–N1')+lnk('game','🎮 Games')+lnk('timer','⏱ Focus timer')+'<button data-x="mpt">🎵 Music player</button><hr>'+lnk('themes','🌙 Themes')+lnk('bin','🗑 Recycle bin')+(window.CC&&CC.uid?'<button data-cc="logout">🚪 Log out'+(CC.name||CC.email?' ('+E(CC.name||CC.email)+')':'')+'</button>':'')+lnk('settings','⚙ Settings')}
 hb.onclick=()=>{drawer();dr.classList.toggle('on')};dr.addEventListener('click',e=>{if(e.target.closest('button'))dr.classList.remove('on')});
 document.addEventListener('pointerdown',e=>{if(dr.classList.contains('on')&&!dr.contains(e.target)&&e.target!==hb)dr.classList.remove('on')});
 /* ---------- library tiles ---------- */
@@ -10727,6 +10730,7 @@ function settingsTabs(){const card=$('#app .card');if(!card)return;const cats={'
  const sl=$('select[data-set=pw]');
  const an=S.an||'Panda';
  card.insertAdjacentHTML('beforeend',
+  (window.CC&&CC.uid?mk('pro','🔐 Account',CC.accountHTML()):'')+
   mk('app','💬 Banner text',`<small>Shown at the bottom-right of the Home banner.</small><div class="row"><label class="app" style="padding:4px 10px"><input type="checkbox" style="flex:none" data-set="bs" ${S.bs!==0?'checked':''}> Show banner text</label><input data-set="bt" maxlength="60" value="${E(S.bt===undefined?'Study hard, sip slow ☕':S.bt)}" placeholder="Write anything…"></div>`)+
   mk('app','🐾 Banner buddy',`<div class="row" style="margin:0 0 8px">${Object.keys(AN).map(n=>`<button class="anp ${n==an&&!S.animg?'on':''}" data-x="anp" data-p="${n}">${sprite(n)}${n}</button>`).join('')}</div><div class="row"><button data-x="anc">🖼 Use my own pic/GIF</button>${S.animg?'<button data-x="anx">Use pixel animal</button>':''}<label class="app" style="padding:4px 10px"><input type="checkbox" data-x="anoff" ${S.pa0?'':'checked'} style="flex:none"> Show buddy</label></div>`)+
   mk('app','🖱 Cursor',`<div class="row" style="margin:0"><select id="cur">${Object.keys(CU).map(k=>`<option ${k==(S.cur||'Default')?'selected':''}>${k}</option>`).join('')}</select></div>`)+
@@ -11065,7 +11069,7 @@ X.tagnew=async()=>{const t=await PR('New tag name','',{ph:'e.g. exam, video, lat
 X.tagrm=async(b)=>{const t=b.dataset.t;if(!await cf('Remove the tag #'+t+' from everything?'))return;snap();S.tags=(S.tags||[]).filter(x=>x!=t);S.secs.forEach(sc=>sc.b.forEach(bx=>{if(bx.g)bx.g=bx.g.filter(x=>x!=t);bx.it.forEach(it=>{if(it.g)it.g=it.g.filter(x=>x!=t)})}));if(S.tf==t)S.tf='';save();R()};
 
 /* ---- start fresh ---- */
-X.wipe=async()=>{if(!await cf('Erase ALL sections, notes and settings on this device? This cannot be undone. Export a backup first if unsure.'))return;try{localStorage.removeItem('pb-v4')}catch(e){}location.hash='';location.reload()};
+X.wipe=async()=>{if(!await cf('Erase ALL sections, notes and settings in your account (and its cloud copy)? This cannot be undone. Export a backup first if unsure.'))return;try{SK&&localStorage.removeItem(SK);localStorage.removeItem('pb-v4')}catch(e){}if(window.CC&&CC.wipe)await CC.wipe();location.hash='';location.reload()};
 
 /* ---- extra bits injected after every render ---- */
 function post2(){
@@ -11277,5 +11281,5 @@ document.addEventListener('wheel',e=>{if((e.ctrlKey||e.metaKey)&&e.target.closes
 addEventListener('keydown',e=>{if(page!='canvas'||!(e.ctrlKey||e.metaKey)||e.target.closest('input,textarea,select,[contenteditable]'))return;const k=e.key.toLowerCase();if(k=='z'&&!e.shiftKey){e.preventDefault();e.stopImmediatePropagation();X.cvun()}else if(k=='y'||(k=='z'&&e.shiftKey)){e.preventDefault();e.stopImmediatePropagation();X.cvre()}},true);
 })();
 
-fxLoop();R();S.wl===0?0:welcome();
+fxLoop();R();(S.wl===0||(window.CC&&!CC.uid))?0:welcome();
 </script></body></html>
